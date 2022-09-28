@@ -1,0 +1,84 @@
+services:
+
+  postgres:
+    container_name: postgres
+    image: postgres
+    environment:
+      POSTGRES_USER: tick
+      POSTGRES_PASSWORD: password #placeholder
+      POSTGRES_DB: customer
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+    networks:
+      - postgres
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - postgres
+    restart: unless-stopped
+
+  eureka-server:
+    container_name: eureka-server
+    build:
+      context: eureka-server
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+    networks:
+      - eureka
+    restart: unless-stopped
+
+  gateway:
+    depends_on:
+      - eureka-server
+    container_name: gateway
+    build:
+      context: gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    networks:
+      - eureka
+    restart: unless-stopped
+
+  customer:
+    depends_on:
+      - postgres
+      - pgadmin
+      - eureka-server
+    container_name: customer
+    build:
+      context: customer
+      dockerfile: Dockerfile
+    networks:
+      - api
+      - postgres
+      - eureka
+    restart: unless-stopped
+
+networks:
+  postgres:
+    name: postgres
+    driver: bridge
+  api:
+    name: api
+    driver: bridge
+  eureka:
+    name: eureka
+    driver: bridge
+
+volumes:
+  postgres:
+  pgadmin:
